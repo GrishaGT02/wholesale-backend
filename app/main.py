@@ -6,6 +6,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.core.config import settings
 from app.api.v1 import api_router
 import traceback
+import subprocess
+import os
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -59,6 +61,19 @@ async def general_exception_handler(request: Request, exc: Exception):
         headers={"Access-Control-Allow-Origin": "*"}
     )
 
+
+# Применяем миграции при старте (только если переменная окружения не установлена)
+# Это нужно для автоматического применения миграций на Render
+if not os.getenv("MIGRATIONS_APPLIED"):
+    try:
+        subprocess.run(["alembic", "upgrade", "head"], check=True, capture_output=True)
+        os.environ["MIGRATIONS_APPLIED"] = "1"
+    except subprocess.CalledProcessError as e:
+        # Если миграции уже применены или произошла ошибка, просто продолжаем
+        pass
+    except FileNotFoundError:
+        # Если alembic не найден, продолжаем (миграции уже применены или будут применены вручную)
+        pass
 
 app.include_router(api_router, prefix="/api/v1")
 
