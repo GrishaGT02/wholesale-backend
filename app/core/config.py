@@ -35,11 +35,16 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 
-settings = Settings()
-
 # Поддержка CORS из переменной окружения (строка через запятую)
 # Это нужно для Render.com и других платформ
 cors_env = os.getenv("BACKEND_CORS_ORIGINS")
-if cors_env:
-    settings.BACKEND_CORS_ORIGINS = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+if cors_env and cors_env.strip():
+    # Если переменная задана, используем её
+    cors_origins = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+else:
+    # Если переменная не задана или пустая, используем значения по умолчанию
+    cors_origins = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
+
+# Создаем settings с правильным значением CORS
+settings = Settings(BACKEND_CORS_ORIGINS=cors_origins)
 
