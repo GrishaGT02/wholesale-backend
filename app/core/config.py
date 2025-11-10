@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 import os
 
@@ -15,8 +15,15 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  
     
-    # CORS - НЕ объявляем здесь, читаем полностью вручную через os.getenv()
-    # Это поле будет добавлено после создания Settings
+    # CORS - объявляем поле, но не читаем из env (обработаем вручную)
+    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        # Исключаем BACKEND_CORS_ORIGINS из чтения env
+        env_ignore_empty=True,
+    )
     
     # Email settings - SMTP сервер для отправки писем от имени приложения
     # Все письма будут отправляться через этот SMTP сервер
@@ -28,21 +35,21 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "noreply@wholesale-aggregator.com"  # От кого отправляются письма
     SMTP_FROM_NAME: str = "Wholesale Aggregator"  # Имя отправителя
     SMTP_USE_TLS: bool = True
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 
-# Создаем settings (BACKEND_CORS_ORIGINS не объявлен в классе, поэтому pydantic-settings не будет его читать)
-settings = Settings()
-
-# Читаем BACKEND_CORS_ORIGINS полностью вручную через os.getenv()
+# Создаем settings
+# Сначала читаем BACKEND_CORS_ORIGINS из env вручную
 cors_env = os.getenv("BACKEND_CORS_ORIGINS")
 if cors_env and cors_env.strip():
     # Если переменная задана и не пустая, разбиваем по запятой
-    settings.BACKEND_CORS_ORIGINS = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+    cors_origins = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
 else:
     # Если переменная не задана или пустая, используем значения по умолчанию
-    settings.BACKEND_CORS_ORIGINS = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
+    cors_origins = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
+
+# Создаем settings с правильным значением CORS
+# Используем model_validate чтобы установить значение после создания
+settings = Settings()
+# Устанавливаем значение через model_copy чтобы обойти валидацию
+object.__setattr__(settings, 'BACKEND_CORS_ORIGINS', cors_origins)
 
