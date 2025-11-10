@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from pydantic import Field, field_validator
+from typing import List, Optional
 import os
 
 
@@ -15,14 +16,32 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  
     
-    # CORS - объявляем поле, но не читаем из env (обработаем вручную)
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
+    # CORS - делаем опциональным и обрабатываем через валидатор
+    BACKEND_CORS_ORIGINS: Optional[List[str]] = Field(
+        default=None,
+        exclude=True  # Исключаем из сериализации и чтения env
+    )
+    
+    @field_validator('BACKEND_CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        # Если значение уже список, возвращаем как есть
+        if isinstance(v, list):
+            return v
+        # Если None или пустая строка, возвращаем None (обработаем после создания)
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        # Если строка, пытаемся разбить по запятой
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return None
     
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
-        # Исключаем BACKEND_CORS_ORIGINS из чтения env
         env_ignore_empty=True,
+        # Исключаем BACKEND_CORS_ORIGINS из чтения env
+        extra='ignore',
     )
     
     # Email settings - SMTP сервер для отправки писем от имени приложения
@@ -37,8 +56,7 @@ class Settings(BaseSettings):
     SMTP_USE_TLS: bool = True
 
 
-# Создаем settings
-# Сначала читаем BACKEND_CORS_ORIGINS из env вручную
+# Сначала читаем BACKEND_CORS_ORIGINS из env вручную (до создания Settings)
 cors_env = os.getenv("BACKEND_CORS_ORIGINS")
 if cors_env and cors_env.strip():
     # Если переменная задана и не пустая, разбиваем по запятой
@@ -47,9 +65,13 @@ else:
     # Если переменная не задана или пустая, используем значения по умолчанию
     cors_origins = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
 
-# Создаем settings с правильным значением CORS
-# Используем model_validate чтобы установить значение после создания
+# Временно удаляем переменную из env, чтобы pydantic-settings не пытался её читать
+if "BACKEND_CORS_ORIGINS" in os.environ:
+    del os.environ["BACKEND_CORS_ORIGINS"]
+
+# Создаем settings (BACKEND_CORS_ORIGINS не будет читаться из env)
 settings = Settings()
-# Устанавливаем значение через model_copy чтобы обойти валидацию
-object.__setattr__(settings, 'BACKEND_CORS_ORIGINS', cors_origins)
+
+# Устанавливаем значение CORS вручную
+settings.BACKEND_CORS_ORIGINS = cors_origins
 
