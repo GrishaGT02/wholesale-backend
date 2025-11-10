@@ -52,3 +52,8 @@ class UserUpdate(BaseModel):
     organization_name: Optional[str] = None
     inn: Optional[str] = None
 
+
+class UserUpdateResponse(UserResponse):
+    """Схема ответа при обновлении профиля - может содержать новый токен"""
+    access_token: Optional[str] = None
+

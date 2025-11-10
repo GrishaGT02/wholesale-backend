@@ -2,9 +2,10 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.config import settings
 from app.api.deps import get_current_active_user
 from app.models.user import User, UserRole
-from app.schemas.user import UserResponse, UserNotificationSettings, UserUpdate
+from app.schemas.user import UserResponse, UserNotificationSettings, UserUpdate, UserUpdateResponse
 from app.services import user_service
 
 router = APIRouter()
@@ -64,7 +65,7 @@ def update_notification_settings(
     return current_user
 
 
-@router.put("/me", response_model=UserResponse)
+@router.put("/me", response_model=UserUpdateResponse)
 def update_profile(
     user_update: UserUpdate,
     db: Session = Depends(get_db),
@@ -72,6 +73,12 @@ def update_profile(
 ):
     """Обновить профиль текущего пользователя"""
     from app.models.user import UserRole
+    from app.core.security import create_access_token
+    from datetime import timedelta
+    
+    # Сохраняем старый username для проверки, изменился ли он
+    old_username = current_user.username
+    username_changed = False
     
     # Проверяем уникальность email, если он изменяется
     if user_update.email and user_update.email != current_user.email:
@@ -90,6 +97,7 @@ def update_profile(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Пользователь с таким username уже существует"
             )
+        username_changed = True
     
     # Email обязателен для поставщиков
     if current_user.role == UserRole.SUPPLIER:
@@ -112,5 +120,27 @@ def update_profile(
     
     db.commit()
     db.refresh(current_user)
-    return current_user
+    
+    # Если username изменился, генерируем новый токен
+    access_token = None
+    if username_changed:
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": current_user.username},
+            expires_delta=access_token_expires
+        )
+    
+    # Возвращаем данные пользователя с опциональным новым токеном
+    return UserUpdateResponse(
+        id=current_user.id,
+        email=current_user.email,
+        username=current_user.username,
+        role=current_user.role,
+        organization_name=current_user.organization_name,
+        inn=current_user.inn,
+        email_notifications=current_user.email_notifications,
+        created_at=current_user.created_at,
+        updated_at=current_user.updated_at,
+        access_token=access_token
+    )
 
