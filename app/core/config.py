@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import Field
 from typing import List
 import os
 
@@ -16,7 +17,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  
     
     # CORS - НЕ читаем из env автоматически, обработаем вручную
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
+    # Используем Field с exclude=True для env, чтобы pydantic-settings не пытался его парсить
+    BACKEND_CORS_ORIGINS: List[str] = Field(
+        default=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"],
+        exclude=True  # Исключаем из чтения env
+    )
     
     # Email settings - SMTP сервер для отправки писем от имени приложения
     # Все письма будут отправляться через этот SMTP сервер
@@ -32,11 +37,9 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
-        # Исключаем BACKEND_CORS_ORIGINS из автоматического чтения из env
-        env_ignore_empty = True
 
 
-# Создаем settings
+# Создаем settings (BACKEND_CORS_ORIGINS не будет читаться из env благодаря exclude=True)
 settings = Settings()
 
 # Обрабатываем BACKEND_CORS_ORIGINS вручную после создания Settings
