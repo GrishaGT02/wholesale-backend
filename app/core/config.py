@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings
-from pydantic import Field
 from typing import List
 import os
 
@@ -16,12 +15,8 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  
     
-    # CORS - НЕ читаем из env автоматически, обработаем вручную
-    # Используем Field с exclude=True для env, чтобы pydantic-settings не пытался его парсить
-    BACKEND_CORS_ORIGINS: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"],
-        exclude=True  # Исключаем из чтения env
-    )
+    # CORS - НЕ объявляем здесь, читаем полностью вручную через os.getenv()
+    # Это поле будет добавлено после создания Settings
     
     # Email settings - SMTP сервер для отправки писем от имени приложения
     # Все письма будут отправляться через этот SMTP сервер
@@ -39,13 +34,15 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 
-# Создаем settings (BACKEND_CORS_ORIGINS не будет читаться из env благодаря exclude=True)
+# Создаем settings (BACKEND_CORS_ORIGINS не объявлен в классе, поэтому pydantic-settings не будет его читать)
 settings = Settings()
 
-# Обрабатываем BACKEND_CORS_ORIGINS вручную после создания Settings
+# Читаем BACKEND_CORS_ORIGINS полностью вручную через os.getenv()
 cors_env = os.getenv("BACKEND_CORS_ORIGINS")
 if cors_env and cors_env.strip():
     # Если переменная задана и не пустая, разбиваем по запятой
     settings.BACKEND_CORS_ORIGINS = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
-# Если переменная не задана или пустая, используем значения по умолчанию (уже установлены)
+else:
+    # Если переменная не задана или пустая, используем значения по умолчанию
+    settings.BACKEND_CORS_ORIGINS = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
 
