@@ -68,7 +68,9 @@ else:
         "http://localhost:5173", 
         "http://127.0.0.1:5173",
         "https://chinapspace.online",
-        "https://www.chinapspace.online"
+        "https://www.chinapspace.online",
+        "https://chinaspace.online",
+        "https://www.chinaspace.online"
     ]
 
 # Временно удаляем переменную из env, чтобы pydantic-settings не пытался её читать
