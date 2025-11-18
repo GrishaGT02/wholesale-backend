@@ -63,7 +63,13 @@ if cors_env and cors_env.strip():
     cors_origins = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
 else:
     # Если переменная не задана или пустая, используем значения по умолчанию
-    cors_origins = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
+    cors_origins = [
+        "http://localhost:3000", 
+        "http://localhost:5173", 
+        "http://127.0.0.1:5173",
+        "https://chinapspace.online",
+        "https://www.chinapspace.online"
+    ]
 
 # Временно удаляем переменную из env, чтобы pydantic-settings не пытался её читать
 if "BACKEND_CORS_ORIGINS" in os.environ:
